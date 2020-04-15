@@ -1,46 +1,42 @@
 import os
 from datetime import datetime
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
 app.secret_key = "randomstring123"
 messages = []
 
 
-def add_messages(username, message):
+def add_message(username, message):
     """ Add messages to list """
     now = datetime.now().strftime("%H:%M:%S")
-    messages.append(f"({now}) {username}: {message}")
-
-
-def get_all_messages():
-    """ Get all of the messages and seperate using br tag"""
-    return "<br>".join(messages)
+    messages_dict = {"timestamp": now, "from": username, "message": message}
+    messages.append(messages_dict)
 
 
 @app.route('/', methods=["GET", "POST"])
 def index():
     """ Main page with instructions"""
     if request.method == "POST":
-        session["username"] = request.form["username"]
+        session["username"] = request.form["username"]  # create a session variable called username and let it equal form username
 
     if "username" in session:
-        return redirect(session["username"])
+        return redirect(url_for("user", username=session["username"]))  # if the username is already in session then redirect to username view
 
     return render_template("index.html")
 
 
-@app.route('/<username>')
+@app.route('/chat/<username>', methods=["GET", "POST"])
 def user(username):
-    """ Display chat usernames """
-    return "<h1>Welcome, " + f"{username}</h1> {get_all_messages()}"
+    """ Display chat usernames and add to them"""
 
+    if request.method == "POST":
+        username = session["username"]
+        message = request.form["message"]
+        add_message(username, message)
+        return redirect(url_for("user", username=session["username"]))
 
-@app.route('/<username>/<message>')
-def send_message(username, message):
-    """ Create new message and redirect to chat page"""
-    add_messages(username, message)
-    return redirect("/" + username)
+    return render_template("chat.html", username=username, chat_messages=messages)
 
 
 app.run(host=os.getenv('IP'), port=int(os.getenv('PORT')), debug=True)
